@@ -184,16 +184,37 @@ func main() {
 
 		f.Println("SSH Connection Established and Encrypted!")
 		if configuration[selected.Host].KeybasedAuthentication && selected.IdentityFile != "" {
-			if err := ensureSupportedIdentity(selected.IdentityFile); err != nil {
-				f.Printf("Identity file unsupported: %v\n", err)
-			} else {
-				f.Println("Key-based authentication is enabled. Proceeding with authentication...")
-				if err := performKeybasedAuth(conn, sshState, selected.User, selected.IdentityFile); err != nil {
-					f.Printf("Key-based auth failed: %v\n", err)
-				} else {
-					f.Println("Authentication complete.")
-					return
+			f.Println("Key-based authentication is enabled. Proceeding with authentication...")
+			// Prefer agent using the identity’s fingerprint if available
+						if err := performKeybasedAuthUsingAgentPreferIdentity(conn, sshState, selected.User, selected.IdentityFile); err == nil {
+							f.Println("Authentication complete (agent).")
+							startSession(conn, sshState)
+							return
+						} else {
+				f.Printf("Agent auth not available or failed: %v\n", err)
+			}
+
+			// Try direct identity file
+			if err := performKeybasedAuth(conn, sshState, selected.User, selected.IdentityFile); err != nil {
+				f.Printf("Key-based auth with identity file failed: %v\n", err)
+				// Try passphrase if the key might be encrypted
+				f.Print("Enter key passphrase (leave blank to skip): ")
+				reader := bufio.NewReader(os.Stdin)
+				pass, _ := reader.ReadString('\n')
+				pass = strings.TrimSpace(pass)
+				if pass != "" {
+					if err2 := performKeybasedAuthWithPassphrase(conn, sshState, selected.User, selected.IdentityFile, pass); err2 != nil {
+						f.Printf("Key-based auth with passphrase failed: %v\n", err2)
+					} else {
+						f.Println("Authentication complete.")
+						startSession(conn, sshState)
+						return
+					}
 				}
+			} else {
+				f.Println("Authentication complete.")
+				startSession(conn, sshState)
+				return
 			}
 		}
 
@@ -206,6 +227,7 @@ func main() {
 			f.Printf("Password auth failed: %v\n", err)
 		} else {
 			f.Println("Authentication complete.")
+			startSession(conn, sshState)
 		}
 
 	} else {

@@ -14,6 +14,9 @@ import (
 	n "net"
 )
 
+// Captured server host key blob (K_S) from KEX, used for hostbound signatures
+var serverHostKeyBlob []byte
+
 // Added vc and vs parameters
 // Updated Signature: Returns ([]byte, []byte) -> (SharedSecret, ExchangeHash)
 func parseKeyExchangeReply(payload []byte, clientPrivKey *ecdh.PrivateKey, clientKexInit, serverKexInit, clientPubKey, vc, vs []byte) ([]byte, []byte) {
@@ -50,6 +53,8 @@ func parseKeyExchangeReply(payload []byte, clientPrivKey *ecdh.PrivateKey, clien
 	f.Printf("Exchange Hash (H) Calculated! Length: %d\n", len(hash))
 
 	// RETURN the calculated values
+	// Store server host key blob for hostbound signatures
+	serverHostKeyBlob = hostKeyBytes
 	return kBytes, hash
 }
 
