@@ -34,7 +34,7 @@ go build
 
 ## Configuration
 
-GoShell looks for a `goshell.conf` file in the current directory. The format is similar to a standard SSH config file.
+GoShell looks for a `goshell.conf` file in the current directory. The format is similar to a standard SSH config file. By default, GoShell uses password based authentication unless the "KeybasedAuthentication" value is listed within the configuration file like in the example below:
 
 **Example `goshell.conf`:**
 
@@ -50,7 +50,6 @@ Host fallback
 Hostname example.com
 Port 2222
 User dev
-KeybasedAuthentication no
 ```
 
 ## Usage
