@@ -3,6 +3,7 @@ package main
 import (
 	f "fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/term"
 )
@@ -58,7 +59,7 @@ func main() {
 
 	args := os.Args[1:]
 
-	err := parseArgs(args)
+	parsedArgs, err := parseArgs(args)
 	if err != nil {
 		panic(err)
 	}
@@ -78,10 +79,15 @@ func main() {
 		f.Println(" -", host)
 	}
 
-	var preferredHost string
+	var selected HostConfig
+	var ok bool
 
-	choice := getUserInput("Select a host: ")
-	selected, ok := configuration[choice]
+	if parsedArgs["host"] == "" {
+		choice := strings.TrimSpace(getUserInput("Select a host: "))
+		selected, ok = configuration[choice]
+	} else {
+		selected, ok = configuration[strings.TrimSpace(parsedArgs["host"])]
+	}
 
 	if !ok {
 		f.Println("Host not found in configuration.")
@@ -203,6 +209,12 @@ func main() {
 			// Prefer agent using the identity’s fingerprint if available
 			if err := performKeybasedAuthUsingAgentPreferIdentity(conn, sshState, selected.User, selected.IdentityFile); err == nil {
 				f.Println("Authentication complete (agent).")
+				if parsedArgs["test"] == "true" {
+					f.Println("Test mode: Authentication successful, exiting before session start.")
+					logDebug("Exiting after successful authentication in test mode.")
+					return
+				}
+
 				startSession(conn, sshState)
 				return
 			} else {
@@ -221,6 +233,13 @@ func main() {
 					if err2 := performKeybasedAuthWithPassphrase(conn, sshState, selected.User, selected.IdentityFile, pass); err2 != nil {
 						f.Printf("Key-based auth with passphrase failed: %v\n", err2)
 					} else {
+
+						if parsedArgs["test"] == "true" {
+							f.Println("Test mode: Authentication successful, exiting before session start.")
+							logDebug("Exiting after successful authentication in test mode.")
+							return
+						}
+
 						f.Println("Authentication complete.")
 						startSession(conn, sshState)
 						return

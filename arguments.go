@@ -14,7 +14,50 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
-func parseArgs(args []string) (string, error) {
+func indexOf(slice []string, item string) int {
+	for i, s := range slice {
+		if s == item {
+			return i
+		}
+	}
+	return -1
+}
+
+func generateSampleConfig() error {
+
+	if _, err := os.Stat("goshell.conf"); err == nil {
+		f.Println("Configuration file 'goshell.conf' already exists. Aborting generation.")
+		return nil
+	}
+
+	sampleConfig := `# Sample GoSHELL Configuration File
+# Format:
+# host_config_name
+#   hostname your.ssh.server
+#   port 22
+#   user your_username
+#   auth_method password|key
+#   password your_password (if using password auth)
+#   key_path /path/to/your/private/key (if using key auth)
+sample_host
+  hostname example.com
+  port 22
+  user testuser
+  auth_method password
+  password your_password_here
+`
+
+	err := os.WriteFile("goshell.conf", []byte(sampleConfig), 0644)
+	if err != nil {
+		return err
+	}
+	f.Println("Sample configuration file 'goshell.conf' generated.")
+	return nil
+}
+
+func parseArgs(args []string) (map[string]string, error) {
+
+	parsedArgs := make(map[string]string)
 
 	if contains(args, "--help") {
 		f.Println("GoSHELL - A Simple SSH Client in Go")
@@ -31,13 +74,22 @@ func parseArgs(args []string) (string, error) {
 	if contains(args, "--verbose") {
 		initDebug()
 		f.Println("Verbose debug output enabled.")
+		parsedArgs["verbose"] = "true"
+	}
+
+	if contains(args, "--generate-config") {
+		err := generateSampleConfig()
+		if err != nil {
+			return nil, err
+		}
+		os.Exit(0)
 	}
 
 	// Allows user to specific alternative location for config file
 	if contains(args, "--config") {
 		// Future: Load config from specified file
 		f.Println("Custom config file option not yet implemented.")
-		return "", nil
+		parsedArgs["config"] = "custom"
 	}
 
 	if contains(args, "--version") {
@@ -45,12 +97,40 @@ func parseArgs(args []string) (string, error) {
 		os.Exit(0)
 	}
 
-	if contains(args, "--host") {
-		// Future: Directly connect to specified host
-		f.Println("Direct host connection option not yet implemented.")
-		return string(args[+1]), nil
+	if contains(args, "--list-hosts") {
+		configuration, err := loadConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		if len(configuration) == 0 {
+			f.Println("No hosts found in configuration.")
+			return nil, nil
+		}
+
+		f.Println("Available Hosts:")
+		for host := range configuration {
+			f.Println(" -", host)
+		}
+		os.Exit(0)
 	}
 
-	return "", nil
+	if contains(args, "--host") {
+		idx := indexOf(args, "--host")
+		if idx >= 0 && idx+1 < len(args) {
+			parsedArgs["host"] = args[idx+1]
+		} else {
+			return nil, f.Errorf("--host requires a value")
+		}
+	}
+
+	if contains(args, "--test") {
+		parsedArgs["test"] = "true"
+	}
+
+	if len(parsedArgs) > 0 {
+		return parsedArgs, nil
+	}
+	return nil, nil
 
 }

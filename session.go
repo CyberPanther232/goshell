@@ -125,78 +125,78 @@ func startSession(conn net.Conn, state *SSHState) error {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-		// Remote -> Local
-		go func() {
-			defer wg.Done()
-			for {
-				payload, err := readEncryptedPacket(conn, state)
-				if err != nil {
-					logDebug("Read error: %v", err)
-					if err != io.EOF {
-						// Connection error
-					}
-					os.Exit(0) // Exit on connection loss
-					return
+	// Remote -> Local
+	go func() {
+		defer wg.Done()
+		for {
+			payload, err := readEncryptedPacket(conn, state)
+			if err != nil {
+				logDebug("Read error: %v", err)
+				if err != io.EOF {
+					// Connection error
 				}
-				if len(payload) == 0 {
+				os.Exit(0) // Exit on connection loss
+				return
+			}
+			if len(payload) == 0 {
+				continue
+			}
+
+			// logDebug("Received packet type: %d", payload[0])
+
+			switch payload[0] {
+			case 94: // SSH_MSG_CHANNEL_DATA
+				// [1 byte type] [4 bytes recipient] [string data]
+				if len(payload) < 9 {
 					continue
 				}
-				
-				// logDebug("Received packet type: %d", payload[0])
-	
-				switch payload[0] {
-				case 94: // SSH_MSG_CHANNEL_DATA
-					// [1 byte type] [4 bytes recipient] [string data]
-					if len(payload) < 9 {
-						continue
-					}
-					// Parse string data
-					dataLen := bin.BigEndian.Uint32(payload[5:9])
-					if uint32(len(payload)-9) < dataLen {
-						continue
-					}
-					data := payload[9 : 9+dataLen]
-					os.Stdout.Write(data)
-					// logDebug("Received data: %q", data)
-	
-				case 97: // SSH_MSG_CHANNEL_CLOSE
-					logDebug("Server closed channel")
-					f.Println("\n[Channel Closed by Server]")
-					os.Exit(0)
-				
-				case 98: // SSH_MSG_CHANNEL_REQUEST (e.g. exit-status)
-					logDebug("Received channel request")
-					// Ignored for now
+				// Parse string data
+				dataLen := bin.BigEndian.Uint32(payload[5:9])
+				if uint32(len(payload)-9) < dataLen {
+					continue
 				}
+				data := payload[9 : 9+dataLen]
+				os.Stdout.Write(data)
+				// logDebug("Received data: %q", data)
+
+			case 97: // SSH_MSG_CHANNEL_CLOSE
+				logDebug("Server closed channel")
+				f.Println("\n[Channel Closed by Server] - Thanks for using GoSHELL!")
+				os.Exit(0)
+
+			case 98: // SSH_MSG_CHANNEL_REQUEST (e.g. exit-status)
+				logDebug("Received channel request")
+				// Ignored for now
 			}
-		}()
-	
-		// Local -> Remote
-		go func() {
-			defer wg.Done()
-			buf := make([]byte, 1024)
-			for {
-				n, err := os.Stdin.Read(buf)
-				if err != nil {
-					logDebug("Stdin read error: %v", err)
+		}
+	}()
+
+	// Local -> Remote
+	go func() {
+		defer wg.Done()
+		buf := make([]byte, 1024)
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil {
+				logDebug("Stdin read error: %v", err)
+				return
+			}
+			if n > 0 {
+				data := buf[:n]
+				logDebug("Read stdin: %q", data)
+				// SSH_MSG_CHANNEL_DATA
+				packet := new(bytes.Buffer)
+				packet.WriteByte(94)
+				bin.Write(packet, bin.BigEndian, remoteChannelID)
+				writeBytes(packet, data)
+
+				if err := writeEncryptedPacket(conn, state, packet.Bytes()); err != nil {
+					logDebug("Write packet error: %v", err)
 					return
 				}
-				if n > 0 {
-					data := buf[:n]
-					logDebug("Read stdin: %q", data)
-					// SSH_MSG_CHANNEL_DATA
-					packet := new(bytes.Buffer)
-					packet.WriteByte(94)
-					bin.Write(packet, bin.BigEndian, remoteChannelID)
-					writeBytes(packet, data)
-					
-					if err := writeEncryptedPacket(conn, state, packet.Bytes()); err != nil {
-						logDebug("Write packet error: %v", err)
-						return
-					}
-				}
 			}
-		}()
+		}
+	}()
 	wg.Wait()
 	return nil
 }
@@ -220,7 +220,7 @@ func waitForChannelConfirmation(conn net.Conn, state *SSHState, expectedLocalID 
 		if len(payload) == 0 {
 			continue
 		}
-		
+
 		if payload[0] == 91 { // SSH_MSG_CHANNEL_OPEN_CONFIRMATION
 			// [1] [4 recipient (localID)] [4 sender (remoteID)] ...
 			if len(payload) < 9 {
@@ -248,7 +248,7 @@ func requestPty(conn net.Conn, state *SSHState, remoteID uint32) error {
 
 	// TERM env var (e.g., "xterm")
 	writeString(payload, "xterm-256color")
-	
+
 	// Dimensions
 	bin.Write(payload, bin.BigEndian, uint32(80)) // cols
 	bin.Write(payload, bin.BigEndian, uint32(24)) // rows
@@ -257,7 +257,7 @@ func requestPty(conn net.Conn, state *SSHState, remoteID uint32) error {
 
 	// Terminal Modes (Encoded string)
 	// Just sending empty modes (0) for now
-	writeString(payload, "\x00") 
+	writeString(payload, "\x00")
 
 	return writeEncryptedPacket(conn, state, payload.Bytes())
 }
@@ -268,7 +268,7 @@ func requestShell(conn net.Conn, state *SSHState, remoteID uint32) error {
 	bin.Write(payload, bin.BigEndian, remoteID)
 	writeString(payload, "shell")
 	payload.WriteByte(1) // Want Reply (True)
-	
+
 	if err := writeEncryptedPacket(conn, state, payload.Bytes()); err != nil {
 		return err
 	}
