@@ -1,10 +1,10 @@
 package main
 
 import (
-	bufio "bufio"
 	f "fmt"
 	"os"
-	"strings"
+
+	"golang.org/x/term"
 )
 
 // Constants
@@ -56,21 +56,29 @@ SSH_MSG_CHANNEL_DATA
 */
 
 func main() {
+	initDebug()
 
 	configuration, err := loadConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	// Choose host: prefer "UBUNTUVPN", else first defined
-	var selected HostConfig
-	if h, ok := configuration["UBUNTUVPN"]; ok {
-		selected = h
-	} else {
-		for _, h := range configuration {
-			selected = h
-			break
-		}
+	if len(configuration) == 0 {
+		f.Println("No configuration found. Please create a goshell.conf file.")
+		return
+	}
+
+	f.Println("Available Hosts:")
+	for host := range configuration {
+		f.Println(" -", host)
+	}
+
+	choice := getUserInput("Select a host: ")
+	selected, ok := configuration[choice]
+
+	if !ok {
+		f.Println("Host not found in configuration.")
+		return
 	}
 
 	// 1. Connection & Version Exchange
@@ -186,11 +194,11 @@ func main() {
 		if configuration[selected.Host].KeybasedAuthentication && selected.IdentityFile != "" {
 			f.Println("Key-based authentication is enabled. Proceeding with authentication...")
 			// Prefer agent using the identity’s fingerprint if available
-						if err := performKeybasedAuthUsingAgentPreferIdentity(conn, sshState, selected.User, selected.IdentityFile); err == nil {
-							f.Println("Authentication complete (agent).")
-							startSession(conn, sshState)
-							return
-						} else {
+			if err := performKeybasedAuthUsingAgentPreferIdentity(conn, sshState, selected.User, selected.IdentityFile); err == nil {
+				f.Println("Authentication complete (agent).")
+				startSession(conn, sshState)
+				return
+			} else {
 				f.Printf("Agent auth not available or failed: %v\n", err)
 			}
 
@@ -199,9 +207,9 @@ func main() {
 				f.Printf("Key-based auth with identity file failed: %v\n", err)
 				// Try passphrase if the key might be encrypted
 				f.Print("Enter key passphrase (leave blank to skip): ")
-				reader := bufio.NewReader(os.Stdin)
-				pass, _ := reader.ReadString('\n')
-				pass = strings.TrimSpace(pass)
+				passBytes, _ := term.ReadPassword(int(os.Stdin.Fd()))
+				f.Println() // Newline after input
+				pass := string(passBytes)
 				if pass != "" {
 					if err2 := performKeybasedAuthWithPassphrase(conn, sshState, selected.User, selected.IdentityFile, pass); err2 != nil {
 						f.Printf("Key-based auth with passphrase failed: %v\n", err2)
@@ -221,9 +229,9 @@ func main() {
 		// Fallback to password auth
 		f.Printf("Password authentication for %s@%s\n", selected.User, selected.Hostname)
 		f.Print("Enter password: ")
-		reader := bufio.NewReader(os.Stdin)
-		pwd, _ := reader.ReadString('\n')
-		if err := performPasswordAuth(conn, sshState, selected.User, strings.TrimSpace(pwd)); err != nil {
+		pwdBytes, _ := term.ReadPassword(int(os.Stdin.Fd()))
+		f.Println() // Newline after input
+		if err := performPasswordAuth(conn, sshState, selected.User, string(pwdBytes)); err != nil {
 			f.Printf("Password auth failed: %v\n", err)
 		} else {
 			f.Println("Authentication complete.")
@@ -234,3 +242,4 @@ func main() {
 		f.Println("FAILURE: Server rejected encryption or logic error.")
 	}
 }
+
