@@ -54,9 +54,14 @@ SSH_MSG_CHANNEL_DATA
 		field is determined by the negotiated MAC algorithm.
 
 */
-
 func main() {
-	initDebug()
+
+	args := os.Args[1:]
+
+	err := parseArgs(args)
+	if err != nil {
+		panic(err)
+	}
 
 	configuration, err := loadConfig()
 	if err != nil {
@@ -72,6 +77,8 @@ func main() {
 	for host := range configuration {
 		f.Println(" -", host)
 	}
+
+	var preferredHost string
 
 	choice := getUserInput("Select a host: ")
 	selected, ok := configuration[choice]
@@ -241,5 +248,5 @@ func main() {
 	} else {
 		f.Println("FAILURE: Server rejected encryption or logic error.")
 	}
-}
 
+}
