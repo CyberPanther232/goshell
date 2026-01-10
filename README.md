@@ -10,20 +10,20 @@ This project is a **Proof of Concept (PoC)** and a learning exercise to understa
 
 **It is NOT intended for production environments.**
 
-*   **Security:** While it implements standard cryptographic primitives (AES-CTR, HMAC-SHA256, ECDH, RSA/Ed25519/ECDSA), it has not been audited and may contain side-channel vulnerabilities or implementation flaws compared to battle-tested clients like OpenSSH.
-*   **Features:** It supports a subset of SSH functionality (interactive shells, basic key authentication) and lacks many advanced features (port forwarding, X11 forwarding, comprehensive config parsing).
+* **Security:** While it implements standard cryptographic primitives (AES-CTR, HMAC-SHA256, ECDH, RSA/Ed25519/ECDSA), it has not been audited and may contain side-channel vulnerabilities or implementation flaws compared to battle-tested clients like OpenSSH.
+* **Features:** It supports a subset of SSH functionality (interactive shells, basic key authentication) and lacks many advanced features (port forwarding, X11 forwarding, comprehensive config parsing).
 
 ## Features
 
-*   **Interactive Shell:** Connect to remote servers and use an interactive terminal (supports raw mode and basic PTY requests).
-*   **Key Exchange:** Implements `ecdh-sha2-nistp256`.
-*   **Encryption:** Uses `aes128-ctr` for encryption and `hmac-sha2-256` for integrity.
-*   **Authentication:**
-    *   Password Authentication
-    *   Public Key Authentication (RSA, Ed25519, ECDSA)
-    *   SSH Agent Support
-    *   Encrypted Private Keys (Passphrase support)
-*   **Configuration:** Simple file-based configuration.
+* **Interactive Shell:** Connect to remote servers and use an interactive terminal (supports raw mode and basic PTY requests).
+* **Key Exchange:** Implements `ecdh-sha2-nistp256`.
+* **Encryption:** Uses `aes128-ctr` for encryption and `hmac-sha2-256` for integrity.
+* **Authentication:**
+  * Password Authentication
+  * Public Key Authentication (RSA, Ed25519, ECDSA)
+  * SSH Agent Support
+  * Encrypted Private Keys (Passphrase support)
+* **Configuration:** Simple file-based configuration.
 
 ## Installation
 
@@ -40,28 +40,28 @@ GoShell looks for a `goshell.conf` file in the current directory. The format is 
 
 ```ssh
 Host myserver
-    Hostname 192.168.1.100
-    Port 22
-    User admin
-    KeybasedAuthentication yes
-    IdentityFile C:\Users\User\.ssh\id_rsa
+Hostname 192.168.1.100
+Port 22
+User admin
+KeybasedAuthentication yes
+IdentityFile C:\Users\User\.ssh\id_rsa
 
 Host fallback
-    Hostname example.com
-    Port 2222
-    User dev
-    KeybasedAuthentication no
+Hostname example.com
+Port 2222
+User dev
+KeybasedAuthentication no
 ```
 
 ## Usage
 
-1.  Create your `goshell.conf`.
-2.  Run the executable:
-    ```bash
-    ./goshell
-    ```
-3.  Select a host from the menu.
-4.  Enter your password or passphrase if prompted.
+1. Create your `goshell.conf`.
+2. Run the executable:
+   ```bash
+   ./goshell
+   ```
+3. Select a host from the menu.
+4. Enter your password or passphrase if prompted.
 
 ## License
 
