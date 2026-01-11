@@ -68,6 +68,9 @@ func parseArgs(args []string) (map[string]string, error) {
 		f.Println("  --config <file>            Specify alternative configuration file")
 		f.Println("  --version                  Show version information")
 		f.Println("  --host <host-config-name>  Specify host to connect to")
+		f.Println("  --list-hosts               List available hosts in configuration")
+		f.Println("  --generate-config          Generate a sample configuration file")
+		f.Println("  --test                     Run in test mode (Tests if configuration profile loads correctly)")
 		os.Exit(0)
 	}
 
