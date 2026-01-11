@@ -62,6 +62,25 @@ User dev
 3. Select a host from the menu.
 4. Enter your password or passphrase if prompted.
 
+### Examples:
+
+```
+./goshell --help
+GoSHELL - A Simple SSH Client in Go
+Usage: goshell [options]
+Options:
+  --help                     Show this help message
+  --verbose                  Enable verbose debug output
+  --config <file>            Specify alternative configuration file
+  --version                  Show version information
+  --host <host-config-name>  Specify host to connect to
+  --list-hosts               List available hosts in configuration
+  --generate-config          Generate a sample configuration file
+  --test                     Run in test mode (Tests if configuration profile loads correctly)
+```
+
+
+
 ## License
 
 [MIT License](LICENSE)

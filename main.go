@@ -64,7 +64,11 @@ func main() {
 		panic(err)
 	}
 
-	configuration, err := loadConfig()
+	if parsedArgs["configurationPath"] == "" {
+		parsedArgs["configurationPath"] = "goshell.conf"
+	}
+
+	configuration, err := loadConfig(parsedArgs["configurationPath"])
 	if err != nil {
 		panic(err)
 	}
@@ -74,15 +78,14 @@ func main() {
 		return
 	}
 
-	f.Println("Available Hosts:")
-	for host := range configuration {
-		f.Println(" -", host)
-	}
-
 	var selected HostConfig
 	var ok bool
 
 	if parsedArgs["host"] == "" {
+		f.Println("Available Hosts:")
+		for host := range configuration {
+			f.Println(" -", host)
+		}
 		choice := strings.TrimSpace(getUserInput("Select a host: "))
 		selected, ok = configuration[choice]
 	} else {

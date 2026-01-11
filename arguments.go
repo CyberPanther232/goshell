@@ -90,9 +90,12 @@ func parseArgs(args []string) (map[string]string, error) {
 
 	// Allows user to specific alternative location for config file
 	if contains(args, "--config") {
-		// Future: Load config from specified file
-		f.Println("Custom config file option not yet implemented.")
-		parsedArgs["config"] = "custom"
+		idx := indexOf(args, "--config")
+		if idx >= 0 && idx+1 < len(args) {
+			parsedArgs["configurationPath"] = args[idx+1]
+		} else {
+			return nil, f.Errorf("--config requires a value")
+		}
 	}
 
 	if contains(args, "--version") {
@@ -101,7 +104,15 @@ func parseArgs(args []string) (map[string]string, error) {
 	}
 
 	if contains(args, "--list-hosts") {
-		configuration, err := loadConfig()
+
+		configurationPath := "goshell.conf"
+
+		if parsedArgs["configurationPath"] != "" {
+			configurationPath = parsedArgs["configurationPath"]
+			f.Println("Loading configuration from:", configurationPath)
+		}
+
+		configuration, err := loadConfig(configurationPath)
 		if err != nil {
 			return nil, err
 		}
@@ -129,6 +140,10 @@ func parseArgs(args []string) (map[string]string, error) {
 
 	if contains(args, "--test") {
 		parsedArgs["test"] = "true"
+		idx := indexOf(args, "--test")
+		if idx >= 0 && idx+1 < len(args) {
+			parsedArgs["host"] = args[idx+1]
+		}
 	}
 
 	if len(parsedArgs) > 0 {

@@ -15,12 +15,12 @@ type HostConfig struct {
 	Hostname               string
 }
 
-func loadConfig() (map[string]HostConfig, error) {
-	if _, err := os.Stat("goshell.conf"); os.IsNotExist(err) {
+func loadConfig(configurationPath string) (map[string]HostConfig, error) {
+	if _, err := os.Stat(configurationPath); os.IsNotExist(err) {
 		return map[string]HostConfig{}, nil
 	}
 
-	data, err := os.ReadFile("goshell.conf")
+	data, err := os.ReadFile(configurationPath)
 	if err != nil {
 		return nil, err
 	}
