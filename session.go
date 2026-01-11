@@ -291,3 +291,88 @@ func requestShell(conn net.Conn, state *SSHState, remoteID uint32) error {
 		}
 	}
 }
+
+func runCommand(conn net.Conn, state *SSHState, command string) error {
+	// 1. Open Channel "session"
+	localChannelID := uint32(0)
+	if err := openSessionChannel(conn, state, localChannelID); err != nil {
+		return err
+	}
+
+	// 2. Wait for Confirmation
+	remoteChannelID, err := waitForChannelConfirmation(conn, state, localChannelID)
+	if err != nil {
+		return err
+	}
+
+	// 3. Send "exec" request
+	if err := requestExec(conn, state, remoteChannelID, command); err != nil {
+		return err
+	}
+
+	// 4. Read Output Loop
+	for {
+		payload, err := readEncryptedPacket(conn, state)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if len(payload) == 0 {
+			continue
+		}
+
+		switch payload[0] {
+		case 94: // SSH_MSG_CHANNEL_DATA
+			// [1 byte type] [4 bytes recipient] [string data]
+			if len(payload) < 9 {
+				continue
+			}
+			dataLen := bin.BigEndian.Uint32(payload[5:9])
+			if uint32(len(payload)-9) < dataLen {
+				continue
+			}
+			data := payload[9 : 9+dataLen]
+			os.Stdout.Write(data)
+
+		case 97: // SSH_MSG_CHANNEL_CLOSE
+			return nil
+
+		case 98: // SSH_MSG_CHANNEL_REQUEST (exit-status)
+			// check for exit-status
+		}
+	}
+	return nil
+}
+
+func requestExec(conn net.Conn, state *SSHState, remoteID uint32, command string) error {
+	payload := new(bytes.Buffer)
+	payload.WriteByte(98) // SSH_MSG_CHANNEL_REQUEST
+	bin.Write(payload, bin.BigEndian, remoteID)
+	writeString(payload, "exec")
+	payload.WriteByte(1) // Want Reply (True)
+	writeString(payload, command)
+
+	if err := writeEncryptedPacket(conn, state, payload.Bytes()); err != nil {
+		return err
+	}
+
+	// Wait for success/failure
+	for {
+		resp, err := readEncryptedPacket(conn, state)
+		if err != nil {
+			return err
+		}
+		if len(resp) > 0 && resp[0] == 99 { // SSH_MSG_CHANNEL_SUCCESS
+			if bin.BigEndian.Uint32(resp[1:5]) == remoteID {
+				return nil
+			}
+		}
+		if len(resp) > 0 && resp[0] == 100 { // SSH_MSG_CHANNEL_FAILURE
+			if bin.BigEndian.Uint32(resp[1:5]) == remoteID {
+				return f.Errorf("exec request failed")
+			}
+		}
+	}
+}

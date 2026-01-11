@@ -2,8 +2,11 @@ package main
 
 import (
 	f "fmt"
+	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"golang.org/x/term"
 )
@@ -56,6 +59,15 @@ SSH_MSG_CHANNEL_DATA
 
 */
 func main() {
+
+	// Setup signal handler for graceful shutdown during menu selection
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		f.Println("\nCancelled.")
+		os.Exit(0)
+	}()
 
 	args := os.Args[1:]
 
@@ -218,7 +230,7 @@ func main() {
 					return
 				}
 
-				startSession(conn, sshState)
+				handleSession(conn, sshState, parsedArgs)
 				return
 			} else {
 				f.Printf("Agent auth not available or failed: %v\n", err)
@@ -244,13 +256,13 @@ func main() {
 						}
 
 						f.Println("Authentication complete.")
-						startSession(conn, sshState)
+						handleSession(conn, sshState, parsedArgs)
 						return
 					}
 				}
 			} else {
 				f.Println("Authentication complete.")
-				startSession(conn, sshState)
+				handleSession(conn, sshState, parsedArgs)
 				return
 			}
 		}
@@ -264,11 +276,21 @@ func main() {
 			f.Printf("Password auth failed: %v\n", err)
 		} else {
 			f.Println("Authentication complete.")
-			startSession(conn, sshState)
+			handleSession(conn, sshState, parsedArgs)
 		}
 
 	} else {
 		f.Println("FAILURE: Server rejected encryption or logic error.")
 	}
 
+}
+
+func handleSession(conn net.Conn, state *SSHState, args map[string]string) {
+	if cmd, ok := args["cmd"]; ok {
+		if err := runCommand(conn, state, cmd); err != nil {
+			f.Printf("Error running command: %v\n", err)
+		}
+	} else {
+		startSession(conn, state)
+	}
 }

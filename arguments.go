@@ -146,9 +146,15 @@ func parseArgs(args []string) (map[string]string, error) {
 		}
 	}
 
-	if len(parsedArgs) > 0 {
-		return parsedArgs, nil
+	if contains(args, "--cmd") {
+		idx := indexOf(args, "--cmd")
+		if idx >= 0 && idx+1 < len(args) {
+			parsedArgs["cmd"] = args[idx+1]
+		} else {
+			return nil, f.Errorf("--cmd requires a value")
+		}
 	}
-	return nil, nil
+
+	return parsedArgs, nil
 
 }
