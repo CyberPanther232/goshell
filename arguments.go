@@ -97,11 +97,29 @@ func parseArgs(args []string) (map[string]string, error) {
 			f.Println("Loading configuration from:", configurationPath)
 		}
 
-		// Optional host name after --test-config (only if next arg doesn't start with --)
+		// Optional positional args after --test-config: [configPath] [host]
 		hostToTest := ""
 		idx := indexOf(args, "--test-config")
-		if idx >= 0 && idx+1 < len(args) && !strings.HasPrefix(args[idx+1], "--") {
-			hostToTest = args[idx+1]
+		if idx >= 0 {
+			tokens := []string{}
+			for j := idx + 1; j < len(args); j++ {
+				if strings.HasPrefix(args[j], "--") {
+					break
+				}
+				tokens = append(tokens, args[j])
+			}
+			if len(tokens) >= 1 {
+				// If first token is a file path, treat it as configuration path
+				if _, err := os.Stat(tokens[0]); err == nil {
+					configurationPath = tokens[0]
+					f.Println("Loading configuration from:", configurationPath)
+					if len(tokens) >= 2 {
+						hostToTest = tokens[1]
+					}
+				} else {
+					hostToTest = tokens[0]
+				}
+			}
 		}
 
 		configuration, err := loadConfig(configurationPath)

@@ -80,6 +80,12 @@ func main() {
 		panic(err)
 	}
 
+	// If --test-config was requested, parseArgs already printed and exited.
+	// As a safety net, avoid proceeding further when the flag is present.
+	if contains(args, "--test-config") {
+		return
+	}
+
 	if parsedArgs["configurationPath"] == "" {
 		parsedArgs["configurationPath"] = "goshell.conf"
 	}
