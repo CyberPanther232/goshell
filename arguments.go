@@ -7,6 +7,7 @@ package main
 import (
 	f "fmt"
 	"os"
+	"strings"
 )
 
 func contains(slice []string, item string) bool {
@@ -76,6 +77,8 @@ func parseArgs(args []string) (map[string]string, error) {
 		f.Println("  --list-hosts               List available hosts in configuration")
 		f.Println("  --generate-config          Generate a sample configuration file")
 		f.Println("  --test                     Run in test mode (Tests if configuration profile loads correctly)")
+		f.Println("  --cmd <command>             Execute a single command on the remote host and exit")
+		f.Println("  --test-config <host-config-name>  Test loading a specific host configuration and exit")
 		os.Exit(0)
 	}
 
@@ -83,6 +86,59 @@ func parseArgs(args []string) (map[string]string, error) {
 		initDebug()
 		f.Println("Verbose debug output enabled.")
 		parsedArgs["verbose"] = "true"
+	}
+
+	// Validate configuration file and optionally a specific host
+	if contains(args, "--test-config") {
+		// Determine configuration path (default or provided via --config earlier)
+		configurationPath := "goshell.conf"
+		if parsedArgs["configurationPath"] != "" {
+			configurationPath = parsedArgs["configurationPath"]
+			f.Println("Loading configuration from:", configurationPath)
+		}
+
+		// Optional host name after --test-config (only if next arg doesn't start with --)
+		hostToTest := ""
+		idx := indexOf(args, "--test-config")
+		if idx >= 0 && idx+1 < len(args) && !strings.HasPrefix(args[idx+1], "--") {
+			hostToTest = args[idx+1]
+		}
+
+		configuration, err := loadConfig(configurationPath)
+		if err != nil {
+			f.Println("Error loading configuration:", err)
+			os.Exit(1)
+		}
+
+		if len(configuration) == 0 {
+			f.Println("No valid entries within the config file.")
+			os.Exit(1)
+		}
+
+		if hostToTest != "" {
+			cfg, ok := configuration[strings.TrimSpace(hostToTest)]
+			if !ok {
+				f.Printf("Host '%s' not found in configuration.\n", hostToTest)
+				os.Exit(1)
+			}
+			// Print basic details to confirm validity
+			f.Println("Configuration for host:", cfg.Host)
+			f.Println("  Hostname:", cfg.Hostname)
+			f.Println("  Port:", cfg.Port)
+			f.Println("  User:", cfg.User)
+			f.Println("  KeybasedAuthentication:", cfg.KeybasedAuthentication)
+			if strings.TrimSpace(cfg.IdentityFile) != "" {
+				f.Println("  IdentityFile:", cfg.IdentityFile)
+			}
+			os.Exit(0)
+		}
+
+		// No specific host requested; list available hosts
+		f.Println("Valid hosts in configuration:")
+		for host := range configuration {
+			f.Println(" -", host)
+		}
+		os.Exit(0)
 	}
 
 	if contains(args, "--generate-config") {
