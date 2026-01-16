@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// read.go - Packet Reading and Decryption
+// Author: CyberPanther232
+
 import (
 	"crypto/hmac"
 	"encoding/binary"
@@ -10,35 +14,35 @@ import (
 )
 
 func readEncryptedPacket(conn net.Conn, state *SSHState) ([]byte, error) {
-	// 1. Read Header (4 bytes)
+	// 1. Read encrypted header (4 bytes)
 	header := make([]byte, 4)
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return nil, err
 	}
 
-	// Decrypt Header
+	// Decrypt header to get packet length
 	decryptedHeader := make([]byte, 4)
 	state.decrypter.XORKeyStream(decryptedHeader, header)
 	packetLen := binary.BigEndian.Uint32(decryptedHeader)
 
-	// 2. Read Body
+	// 2. Read encrypted body of packet_len bytes
 	encryptedBody := make([]byte, packetLen)
 	if _, err := io.ReadFull(conn, encryptedBody); err != nil {
 		return nil, err
 	}
 
-	// Decrypt Body
+	// Decrypt body
 	body := make([]byte, packetLen)
 	state.decrypter.XORKeyStream(body, encryptedBody)
 
-	// 3. Verify MAC (Use readSeq)
-	plaintextFull := append(decryptedHeader, body...) // Reconstruct [len][body]
-
-	serverMac := make([]byte, 32) // HMAC-SHA2-256 is 32 bytes
+	// 3. Read MAC
+	serverMac := make([]byte, state.macReader.Size())
 	if _, err := io.ReadFull(conn, serverMac); err != nil {
 		return nil, err
 	}
 
+	// 4. Verify MAC over plaintext [len][body]
+	plaintextFull := append(decryptedHeader, body...)
 	state.macReader.Reset()
 	bin.Write(state.macReader, bin.BigEndian, state.readSeq)
 	state.macReader.Write(plaintextFull)
@@ -48,14 +52,14 @@ func readEncryptedPacket(conn net.Conn, state *SSHState) ([]byte, error) {
 		return nil, f.Errorf("MAC mismatch on packet %d", state.readSeq)
 	}
 
-	// 4. Extract Payload
+	// 5. Extract payload from body
 	paddingLen := body[0]
 	if int(paddingLen) >= len(body) {
 		return nil, f.Errorf("invalid padding length")
 	}
 	payload := body[1 : len(body)-int(paddingLen)]
 
-	// 5. Increment Read Counter
+	// 6. Increment read sequence
 	state.readSeq++
 	return payload, nil
 }

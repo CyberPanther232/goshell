@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// arguments.go - Command Line Argument Parsing
+// Author: CyberPanther232
+
 import (
 	f "fmt"
 	"os"
@@ -100,7 +104,7 @@ func parseArgs(args []string) (map[string]string, error) {
 	}
 
 	if contains(args, "--version") {
-		f.Println("GoSHELL version 0.1")
+		f.Println("GoSHELL version 0.2 - Beta")
 		os.Exit(0)
 	}
 

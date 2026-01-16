@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// user_auth.go - User Authentication Handling
+// Author: CyberPanther232
+
 import (
 	"bytes"
 	"crypto"

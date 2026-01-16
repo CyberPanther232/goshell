@@ -23,3 +23,16 @@ func logDebug(format string, args ...interface{}) {
 	}
 }
 
+// vprintln prints to stdout only when verbose mode is enabled.
+func vprintln(a ...interface{}) {
+	if debugFile != nil {
+		fmt.Println(a...)
+	}
+}
+
+// vprintf prints to stdout only when verbose mode is enabled.
+func vprintf(format string, a ...interface{}) {
+	if debugFile != nil {
+		fmt.Printf(format, a...)
+	}
+}

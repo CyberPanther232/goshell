@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// user_input.go - User Input Handling
+// Author: CyberPanther232
+
 import (
 	bufio "bufio"
 	f "fmt"

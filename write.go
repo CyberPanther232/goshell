@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// write.go - Packet Writing and Encryption
+// Author: CyberPanther232
+
 import (
 	"bytes"
 	"crypto/rand"
@@ -11,7 +15,7 @@ import (
 func writeEncryptedPacket(conn net.Conn, state *SSHState, payload []byte) error {
 	blockSize := 16
 
-	// 1. Padding
+	// 1. Padding calculation per RFC 4253 (encrypted phase)
 	currentLen := 4 + 1 + len(payload)
 	paddingLen := blockSize - (currentLen % blockSize)
 	if paddingLen < 4 {
@@ -20,6 +24,7 @@ func writeEncryptedPacket(conn net.Conn, state *SSHState, payload []byte) error 
 
 	packetLen := uint32(len(payload) + paddingLen + 1)
 
+	// Construct plaintext: [packet_length][padding_length][payload][padding]
 	buf := new(bytes.Buffer)
 	bin.Write(buf, bin.BigEndian, packetLen)
 	buf.WriteByte(byte(paddingLen))
@@ -30,23 +35,23 @@ func writeEncryptedPacket(conn net.Conn, state *SSHState, payload []byte) error 
 	buf.Write(padding)
 	plaintext := buf.Bytes()
 
-	// 2. MAC (Use writeSeq)
+	// 2. MAC over sequence number and plaintext packet
 	state.macWriter.Reset()
 	bin.Write(state.macWriter, bin.BigEndian, state.writeSeq)
 	state.macWriter.Write(plaintext)
 	mac := state.macWriter.Sum(nil)
 
-	// 3. Encrypt
+	// 3. Encrypt entire plaintext (including packet_length)
 	ciphertext := make([]byte, len(plaintext))
 	state.encrypter.XORKeyStream(ciphertext, plaintext)
 
-	// 4. Send
+	// 4. Send: encrypted packet + mac
 	finalPacket := append(ciphertext, mac...)
 	if _, err := conn.Write(finalPacket); err != nil {
 		return err
 	}
 
-	// 5. Increment Write Counter
+	// 5. Increment write sequence
 	state.writeSeq++
 	return nil
 }

@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// session.go - SSH Session Management and IO Loop
+// Author: CyberPanther232
+
 import (
 	"bytes"
 	"crypto/aes"
@@ -18,13 +22,17 @@ import (
 )
 
 type SSHState struct {
-	encrypter cipher.Stream
-	decrypter cipher.Stream
-	macWriter hash.Hash
-	macReader hash.Hash
-	writeSeq  uint32 // Counter for packets we SEND
-	readSeq   uint32 // Counter for packets we RECEIVE
-	sessionId []byte // RFC 4253: exchange hash used as session identifier
+	encrypter   cipher.Stream
+	decrypter   cipher.Stream
+	macWriter   hash.Hash
+	macReader   hash.Hash
+	writeSeq    uint32 // Counter for packets we SEND
+	readSeq     uint32 // Counter for packets we RECEIVE
+	sessionId   []byte // RFC 4253: exchange hash used as session identifier
+	clientBlock cipher.Block
+	serverBlock cipher.Block
+	k           []byte // Shared secret
+	h           []byte // Exchange hash
 }
 
 func activateEncryption(kBytes, hBytes []byte) (*SSHState, error) {
@@ -55,13 +63,17 @@ func activateEncryption(kBytes, hBytes []byte) (*SSHState, error) {
 	macReader := hmac.New(sha256.New, serverMacKey)
 
 	return &SSHState{
-		encrypter: encrypter,
-		decrypter: decrypter,
-		macWriter: macWriter,
-		macReader: macReader,
-		writeSeq:  0,
-		readSeq:   0,
-		sessionId: sessionId,
+		encrypter:   encrypter,
+		decrypter:   decrypter,
+		macWriter:   macWriter,
+		macReader:   macReader,
+		writeSeq:    0,
+		readSeq:     0,
+		sessionId:   sessionId,
+		clientBlock: blockClient,
+		serverBlock: blockServer,
+		k:           kBytes,
+		h:           hBytes,
 	}, nil
 }
 
@@ -107,19 +119,19 @@ func startSession(conn net.Conn, state *SSHState) error {
 	if err != nil {
 		return err
 	}
-	f.Printf("Session Channel Opened. Remote ID: %d\n", remoteChannelID)
+	vprintf("Session Channel Opened. Remote ID: %d\n", remoteChannelID)
 
 	// 3. Request PTY
 	// Defaults: xterm, 80x24 (Simple default, can be improved)
 	if err := requestPty(conn, state, remoteChannelID); err != nil {
-		f.Printf("Warning: PTY request failed: %v\n", err)
+		vprintf("Warning: PTY request failed: %v\n", err)
 	}
 
 	// 4. Request Shell
 	if err := requestShell(conn, state, remoteChannelID); err != nil {
 		return err
 	}
-	f.Println("Remote shell started!")
+	vprintln("Remote shell started!")
 
 	// 5. Start IO Loop
 	var wg sync.WaitGroup

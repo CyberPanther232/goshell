@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// connection.go - Connection Setup and Initial Handshake
+// Author: CyberPanther232
+
 import (
 	"bytes"
 	f "fmt"
@@ -8,19 +12,19 @@ import (
 )
 
 func setupConnection(hostname string, port int, user string) (n.Conn, []byte, error) {
-	f.Println("Initiating SSH connection...")
+	vprintln("Initiating SSH connection...")
 
 	address := n.JoinHostPort(hostname, f.Sprintf("%d", port))
 	conn, err := n.Dial("tcp", address)
 	if err != nil {
 		return nil, nil, err
 	}
-	f.Printf("Connected to %s:%d\n", hostname, port)
+	vprintf("Connected to %s:%d\n", hostname, port)
 
 	// 1. Send Client Version
 	// RFC requires \r\n at the end
-	clientVersion := "SSH-2.0-GoSHELL_0.1"
-	_, err = conn.Write([]byte(clientVersion + "\r\n"))
+	clientVersionString := "SSH-2.0-GoSHELL_0.2"
+	_, err = conn.Write([]byte(clientVersionString + "\r\n"))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,7 +49,7 @@ func setupConnection(hostname string, port int, user string) (n.Conn, []byte, er
 	// 3. Clean up the version string
 	// This removes the trailing \r if present, but keeps the crucial version text
 	serverVersionClean := bytes.TrimSpace(versionBuf)
-	f.Printf("Server Version: %s\n", serverVersionClean)
+	vprintf("Server Version: %s\n", serverVersionClean)
 
 	return conn, serverVersionClean, nil
 }

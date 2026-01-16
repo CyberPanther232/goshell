@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// kex.go - Key Exchange and Encryption Setup
+// Author: CyberPanther232
+
 import (
 	"bytes"
 	"crypto/ecdh"
@@ -7,7 +11,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	bin "encoding/binary"
-	f "fmt"
 	"io"
 	"math/big"
 	"net"
@@ -26,8 +29,8 @@ func parseKeyExchangeReply(payload []byte, clientPrivKey *ecdh.PrivateKey, clien
 	serverEphemeralBytes, _ := readString(r)
 	signatureBytes, _ := readString(r)
 
-	f.Printf("Server Host Key Algo: %s\n", string(hostKeyBytes))
-	f.Printf("Signature Blob Length: %d\n", len(signatureBytes))
+	vprintf("Server Host Key Algo: %s\n", string(hostKeyBytes))
+	vprintf("Signature Blob Length: %d\n", len(signatureBytes))
 
 	serverPub, err := ecdh.P256().NewPublicKey(serverEphemeralBytes)
 	if err != nil {
@@ -46,11 +49,11 @@ func parseKeyExchangeReply(payload []byte, clientPrivKey *ecdh.PrivateKey, clien
 		kBytes = append([]byte{0x00}, kBytes...)
 	}
 
-	f.Printf("Shared Secret Calculated! Length: %d\n", len(kBytes))
+	vprintf("Shared Secret Calculated! Length: %d\n", len(kBytes))
 
 	// Calculate Hash
 	hash := calculateExchangeHash(vc, vs, clientKexInit, serverKexInit, hostKeyBytes, clientPubKey, serverEphemeralBytes, kBytes)
-	f.Printf("Exchange Hash (H) Calculated! Length: %d\n", len(hash))
+	vprintf("Exchange Hash (H) Calculated! Length: %d\n", len(hash))
 
 	// RETURN the calculated values
 	// Store server host key blob for hostbound signatures
@@ -101,7 +104,7 @@ func generateECDHKeyPair() (*ecdh.PrivateKey, []byte, error) {
 }
 
 func prepareKeyExchange(conn n.Conn) ([]byte, error) {
-	f.Println("Starting key exchange...")
+	vprintln("Starting key exchange...")
 	payload := new(bytes.Buffer)
 
 	payload.WriteByte(msgKexInit)

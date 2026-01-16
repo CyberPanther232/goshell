@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// load_config.go - Configuration Loading and Parsing
+// Author: CyberPanther232
+
 import (
 	"os"
 	"strconv"

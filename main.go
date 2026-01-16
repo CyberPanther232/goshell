@@ -1,5 +1,9 @@
 package main
 
+// Version 0.2 - Beta
+// load_config.go - Configuration Loading and Parsing
+// Author: CyberPanther232
+
 import (
 	f "fmt"
 	"net"
@@ -65,7 +69,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		f.Println("\nCancelled.")
+		vprintln("\nCancelled.")
 		os.Exit(0)
 	}()
 
@@ -86,7 +90,7 @@ func main() {
 	}
 
 	if len(configuration) == 0 {
-		f.Println("No configuration found. Please create a goshell.conf file.")
+		vprintln("No configuration found. Please create a goshell.conf file.")
 		return
 	}
 
@@ -94,9 +98,9 @@ func main() {
 	var ok bool
 
 	if parsedArgs["host"] == "" {
-		f.Println("Available Hosts:")
+		vprintln("Available Hosts:")
 		for host := range configuration {
-			f.Println(" -", host)
+			vprintln(" -", host)
 		}
 		choice := strings.TrimSpace(getUserInput("Select a host: "))
 		selected, ok = configuration[choice]
@@ -116,23 +120,23 @@ func main() {
 	}
 	defer conn.Close()
 
-	clientVersion := []byte("SSH-2.0-GoSHELL_0.1")
+	clientVersion := []byte("SSH-2.0-GoSHELL_0.2")
 
 	// 2. Client KEXINIT
 	clientKexPayload, _ := prepareKeyExchange(conn)
 	writePacket(conn, clientKexPayload)
-	f.Println("Sent Client KEXINIT")
+	vprintln("Sent Client KEXINIT")
 
 	// 3. Server KEXINIT
 	serverKexPayload, err := readPacket(conn)
 	if err != nil {
-		f.Println("Failed to read Server KEXINIT. Did setupConnection over-read?")
+		vprintln("Failed to read Server KEXINIT. Did setupConnection over-read?")
 		panic(err)
 	}
 	if len(serverKexPayload) > 0 && serverKexPayload[0] != 20 {
 		panic(f.Sprintf("Expected Msg 20, got %d", serverKexPayload[0]))
 	}
-	f.Println("Received Server KEXINIT")
+	vprintln("Received Server KEXINIT")
 
 	// 4. Generate & Send ECDH Init
 	privKey, pubKey, err := generateECDHKeyPair()
@@ -143,7 +147,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	f.Println("Sent ECDH Init")
+	vprintln("Sent ECDH Init")
 
 	// 5. Read ECDH Reply
 	replyPayload, err := readPacket(conn)
@@ -151,10 +155,10 @@ func main() {
 		panic(err)
 	}
 	if replyPayload[0] != 31 {
-		f.Printf("Unexpected packet: %d\n", replyPayload[0])
+		vprintf("Unexpected packet: %d\n", replyPayload[0])
 		return
 	}
-	f.Println("Received ECDH Reply.")
+	vprintln("Received ECDH Reply.")
 
 	// 6. Calculate Secrets (K and H)
 	// We capture the returned values here!
@@ -162,7 +166,7 @@ func main() {
 
 	// 7. Send NEWKEYS (Msg 21)
 	sendNewKeys(conn)
-	f.Println("Sent NEWKEYS.")
+	vprintln("Sent NEWKEYS.")
 
 	// 8. Receive NEWKEYS (Msg 21)
 	serverNewKeys, err := readPacket(conn)
@@ -172,7 +176,7 @@ func main() {
 	if serverNewKeys[0] != 21 {
 		panic("Expected SSH_MSG_NEWKEYS from server")
 	}
-	f.Println("Received NEWKEYS from server.")
+	vprintln("Received NEWKEYS from server.")
 
 	// 9. Activate Encryption
 	sshState, err := activateEncryption(derivedKBytes, exchangeHash)
@@ -185,9 +189,9 @@ func main() {
 	sshState.writeSeq = 3
 	sshState.readSeq = 3
 
-	f.Println("------------------------------------------------")
-	f.Println("ENCRYPTION ACTIVATED (AES-128-CTR + HMAC-SHA256)")
-	f.Println("------------------------------------------------")
+	vprintln("------------------------------------------------")
+	vprintln("ENCRYPTION ACTIVATED (AES-128-CTR + HMAC-SHA256)")
+	vprintln("------------------------------------------------")
 
 	// 10. Verify Encryption: Send Service Request
 	// We ask for the "ssh-userauth" service. If the server replies, encryption works.
@@ -200,7 +204,7 @@ func main() {
 	}
 
 	// Use writeEncryptedPacket (ensure you added this function!)
-	f.Println("Sending Service Request (Encrypted)...")
+	vprintln("Sending Service Request (Encrypted)...")
 	err = writeEncryptedPacket(conn, sshState, serviceRequest)
 	if err != nil {
 		panic(err)
@@ -213,19 +217,19 @@ func main() {
 		panic(err)
 	}
 
-	f.Printf("Decrypted Response Type: %d\n", response[0])
+	vprintf("Decrypted Response Type: %d\n", response[0])
 
 	if response[0] == 6 { // SSH_MSG_SERVICE_ACCEPT
-		f.Println("SUCCESS: Server accepted our encrypted packet!")
+		vprintln("SUCCESS: Server accepted our encrypted packet!")
 
-		f.Println("SSH Connection Established and Encrypted!")
+		vprintln("SSH Connection Established and Encrypted!")
 		if configuration[selected.Host].KeybasedAuthentication && selected.IdentityFile != "" {
-			f.Println("Key-based authentication is enabled. Proceeding with authentication...")
+			vprintln("Key-based authentication is enabled. Proceeding with authentication...")
 			// Prefer agent using the identity’s fingerprint if available
 			if err := performKeybasedAuthUsingAgentPreferIdentity(conn, sshState, selected.User, selected.IdentityFile); err == nil {
-				f.Println("Authentication complete (agent).")
+				vprintln("Authentication complete (agent).")
 				if parsedArgs["test"] == "true" {
-					f.Println("Test mode: Authentication successful, exiting before session start.")
+					vprintln("Test mode: Authentication successful, exiting before session start.")
 					logDebug("Exiting after successful authentication in test mode.")
 					return
 				}
@@ -255,32 +259,32 @@ func main() {
 							return
 						}
 
-						f.Println("Authentication complete.")
+						vprintln("Authentication complete.")
 						handleSession(conn, sshState, parsedArgs)
 						return
 					}
 				}
 			} else {
-				f.Println("Authentication complete.")
+				vprintln("Authentication complete.")
 				handleSession(conn, sshState, parsedArgs)
 				return
 			}
 		}
 
 		// Fallback to password auth
-		f.Printf("Password authentication for %s@%s\n", selected.User, selected.Hostname)
+		vprintf("Password authentication for %s@%s\n", selected.User, selected.Hostname)
 		f.Print("Enter password: ")
 		pwdBytes, _ := term.ReadPassword(int(os.Stdin.Fd()))
 		f.Println() // Newline after input
 		if err := performPasswordAuth(conn, sshState, selected.User, string(pwdBytes)); err != nil {
-			f.Printf("Password auth failed: %v\n", err)
+			vprintf("Password auth failed: %v\n", err)
 		} else {
-			f.Println("Authentication complete.")
+			vprintln("Authentication complete.")
 			handleSession(conn, sshState, parsedArgs)
 		}
 
 	} else {
-		f.Println("FAILURE: Server rejected encryption or logic error.")
+		vprintln("FAILURE: Server rejected encryption or logic error.")
 	}
 
 }
