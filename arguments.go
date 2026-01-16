@@ -32,19 +32,20 @@ func generateSampleConfig() error {
 
 	sampleConfig := `# Sample GoSHELL Configuration File
 # Format:
-# host_config_name
-#   hostname your.ssh.server
-#   port 22
-#   user your_username
-#   auth_method password|key
-#   password your_password (if using password auth)
-#   key_path /path/to/your/private/key (if using key auth)
-sample_host
-  hostname example.com
-  port 22
-  user testuser
-  auth_method password
-  password your_password_here
+# Host host_config_name
+# Hostname your.ssh.server
+# Port 22
+# User your_username
+# KeybasedAuthentication yes|no
+# Password your_password (if using password auth)
+# IdentityFile /path/to/your/private/key (if using key auth)
+Host sample_host
+Hostname example.com
+Port 22
+User testuser
+KeybasedAuthentication yes
+Password your_password_here # Only if not using key-based authentication
+IdentityFile /path/to/your/private/key # Only if using key-based authentication
 `
 
 	err := os.WriteFile("goshell.conf", []byte(sampleConfig), 0644)
