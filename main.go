@@ -69,7 +69,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		vprintln("\nCancelled.")
+		f.Println("\nCancelled.")
 		os.Exit(0)
 	}()
 
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	if len(configuration) == 0 {
-		vprintln("No configuration found. Please create a goshell.conf file.")
+		f.Println("No valid entries within the config file.")
 		return
 	}
 
@@ -98,9 +98,9 @@ func main() {
 	var ok bool
 
 	if parsedArgs["host"] == "" {
-		vprintln("Available Hosts:")
+		f.Println("Available Hosts:")
 		for host := range configuration {
-			vprintln(" -", host)
+			f.Println(" -", host)
 		}
 		choice := strings.TrimSpace(getUserInput("Select a host: "))
 		selected, ok = configuration[choice]

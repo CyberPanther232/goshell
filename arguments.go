@@ -65,7 +65,7 @@ func parseArgs(args []string) (map[string]string, error) {
 	parsedArgs := make(map[string]string)
 
 	if contains(args, "--help") {
-		f.Println("GoSHELL - A Simple SSH Client in Go")
+		f.Println("GoSHELL - Version 0.2 - Beta - A Simple SSH Client in Go")
 		f.Println("Usage: goshell [options]")
 		f.Println("Options:")
 		f.Println("  --help                     Show this help message")
